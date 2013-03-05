@@ -85,16 +85,42 @@ ceilDiv x y = (x + y - 1) `div` y
 align :: Integral a => a -> a -> a
 align x boundary = (x `ceilDiv` boundary) * boundary
 
+data IndexedCache a = IndexedCache
+  { _cacheSize :: Int
+  , _cacheNew :: Int -> IO a
+  , _cacheArray :: MV.IOVector (Maybe a)
+  }
+
+newIndexedCache :: Int -> (Int -> IO a) -> IO (IndexedCache a)
+newIndexedCache count new = IndexedCache count new <$> newDefault count Nothing
+
+indexedCacheDelete :: IndexedCache a -> Int -> IO ()
+indexedCacheDelete (IndexedCache _ _ array) i = do
+  maybe (return ()) (const . debug $ "Cache Deleting: " ++ show i) =<<
+    MV.read array i
+  MV.write array i Nothing
+
+indexedCacheGet :: IndexedCache a -> Int -> IO a
+indexedCacheGet (IndexedCache _ new array) index = do
+  mItem <- MV.read array index
+  case mItem of
+    Nothing -> do
+      item <- new index
+      debug $ "Loading: " ++ show index
+      MV.write array index $ Just item
+      return item
+    Just item -> return item
+
 main :: IO ()
 main = do
   args <- Env.getArgs
   let imgCount = length args
       fileNameAt = (V.fromList args V.!)
-  imgCache <- newDefault imgCount Nothing
+  imgCache <- newIndexedCache imgCount (loadSizedImage . fileNameAt)
   withGLFWWindow GLFW.defaultDisplayOptions $ do
     GLFW.setWindowCloseCallback $ fail "Window closed"
-    movementRef <- newIORef 0 :: IO (IORef Int)
-    posRef <- newIORef (0, 0) :: IO (IORef (Int, Int))
+    movementRef <- newIORef 0
+    posRef <- newIORef (0, 0)
     let keyPressed GLFW.KeyLeft = move (-6)
         keyPressed GLFW.KeyRight = move 6
         keyPressed _ = return $ return ()
@@ -131,20 +157,9 @@ main = do
           [0..startOfRange-1] ++
           -- Right:
           [endOfRange+1 .. imgCount-1]
-      forM_ invisibleIndices $ \i -> do
-        maybe (return ()) (const . debug $ "Deleting image: " ++ show i) =<<
-          MV.read imgCache i
-        MV.write imgCache i Nothing
+      forM_ invisibleIndices $ indexedCacheDelete imgCache
 
-      imgs <- forM [startOfRange..endOfRange] $ \index -> do
-        mImg <- MV.read imgCache index
-        case mImg of
-          Nothing -> do
-            sizedImg <- loadSizedImage $ fileNameAt index
-            debug $ "Loading image: " ++ show index
-            MV.write imgCache index $ Just sizedImg
-            return sizedImg
-          Just sizedImg -> return sizedImg
+      imgs <- forM [startOfRange..endOfRange] $ indexedCacheGet imgCache
 
       let place imgPos img = Draw.translate (both fromIntegral imgPos) %% scaleTo gridItemSize img
       return . mconcat $ zipWith place gridPositions imgs
