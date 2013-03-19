@@ -16,6 +16,7 @@ import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.Rendering.OpenGL.GL as GL
 import qualified Graphics.UI.GLFW as GLFW
 import qualified System.Environment as Env
+import qualified System.IO as IO
 
 assert :: Monad m => String -> Bool -> m ()
 assert msg p = unless p (fail msg)
@@ -111,8 +112,20 @@ indexedCacheGet (IndexedCache _ new array) index = do
       return item
     Just item -> return item
 
+updatePos :: Integral a => a -> a -> a -> (a, a) -> a -> (a, a) -> (a, a)
+updatePos imgCount gridItemSize winWidth (xCount, yCount) movement (posIndex, posDelta)
+  | newPosIndex < 0 = (0, 0)
+  | newPosIndex >= rightMost && m+winWidth >= gridItemSize = (posIndex, posDelta)
+  | otherwise = (newPosIndex, m)
+  where
+    newPosIndex = posIndex + (d * yCount)
+    columns = imgCount `ceilDiv` yCount
+    rightMost = (1 + columns - (xCount-1)) `align` yCount
+    (d, m) = (posDelta + movement) `divMod` gridItemSize
+
 main :: IO ()
 main = do
+  IO.hSetBuffering IO.stdout IO.LineBuffering
   args <- Env.getArgs
   let imgCount = length args
       fileNameAt = (V.fromList args V.!)
@@ -121,8 +134,8 @@ main = do
     GLFW.setWindowCloseCallback $ fail "Window closed"
     movementRef <- newIORef 0
     posRef <- newIORef (0, 0)
-    let keyPressed GLFW.KeyLeft = move (-6)
-        keyPressed GLFW.KeyRight = move 6
+    let keyPressed GLFW.KeyLeft = move (-10)
+        keyPressed GLFW.KeyRight = move 10
         keyPressed _ = return $ return ()
         move delta  True  = writeIORef movementRef delta
         move _delta False = writeIORef movementRef 0
@@ -130,22 +143,14 @@ main = do
     let
       gridItemSize :: Num a => a
       gridItemSize = 400
-      updatePos winWidth xCount yCount movement (posIndex, posDelta)
-        | newPosIndex < 0 = (0, 0)
-        | newPosIndex >= rightMost && m+winWidth >= gridItemSize = (posIndex, posDelta)
-        | otherwise = (newPosIndex, m)
-        where
-          newPosIndex = posIndex + (d * yCount)
-          columns = imgCount `ceilDiv` yCount
-          rightMost = (1 + columns - (xCount-1)) `align` yCount
-          (d, m) = (posDelta + movement) `divMod` gridItemSize
     mainLoop $ \(winWidth, winHeight) -> do
       movement <- readIORef movementRef
       (posIndex, posDelta) <- readIORef posRef
       let
         yCount = winHeight `div` gridItemSize
         xCount = (posDelta + winWidth) `ceilDiv` gridItemSize
-      modifyIORef' posRef $ updatePos winWidth xCount yCount movement
+      modifyIORef' posRef $ updatePos imgCount gridItemSize winWidth (xCount, yCount) movement
+
       let
         gridPositions =
           map (first (subtract posDelta) . both ((gridItemSize*) . fromIntegral)) $
