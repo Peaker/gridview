@@ -1,8 +1,8 @@
 {-# OPTIONS -Wall -O2 #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ViewPatterns, TemplateHaskell #-}
 --import qualified System.Directory as Dir
 import Control.Applicative
-import Control.Lens (_1, (%~))
+import Control.Lens (_1, (^.), (%~), (.~), (&), mapped, makeLenses)
 import Control.Monad
 import Data.IORef
 import Data.Monoid
@@ -45,21 +45,83 @@ ceilDiv x y = (x + y - 1) `div` y
 align :: Integral a => a -> a -> a
 align x boundary = (x `ceilDiv` boundary) * boundary
 
-updatePos :: Integral a => a -> a -> a -> (a, a) -> a -> (a, a) -> (a, a)
-updatePos imgCount gridItemSize winWidth (xCount, yCount) movement (posIndex, posDelta)
-  | newPosIndex < 0 = (0, 0)
-  | newPosIndex >= rightMost && m+winWidth >= gridItemSize = (posIndex, posDelta)
-  | otherwise = (newPosIndex, m)
-  where
-    newPosIndex = posIndex + (d * yCount)
-    columns = imgCount `ceilDiv` yCount
-    rightMost = (1 + columns - (xCount-1)) `align` yCount
-    (d, m) = (posDelta + movement) `divMod` gridItemSize
+gridItemSize :: Num a => a
+gridItemSize = 400
 
 argsArray :: IO (Int, Int -> String)
 argsArray = do
   args <- Env.getArgs
   return (length args, (V.fromList args V.!))
+
+data Scroller = Scroller
+  { _sImageIndex :: Int
+  , _sPixelOffset :: Int
+  , _sMovementDelta :: Int
+  } deriving (Show)
+makeLenses ''Scroller
+
+emptyScroller :: Scroller
+emptyScroller = Scroller 0 0 0
+
+keyPressed :: GLFW.Key -> Bool -> Scroller -> Scroller
+keyPressed _ False = sMovementDelta .~ 0
+keyPressed GLFW.KeyLeft True = sMovementDelta .~ (-10)
+keyPressed GLFW.KeyRight True = sMovementDelta .~ 10
+keyPressed _ _ = id
+
+iteration :: Int -> Vector2 Int -> Scroller -> (Scroller, Vector2 Int)
+iteration imgCount (Vector2 winWidth winHeight) s =
+  ( s & sImageIndex .~ resultImageIndex
+      & sPixelOffset .~ resultPixelOffset
+  , Vector2 xCount yCount
+  )
+  where
+    imageIndex = s ^. sImageIndex
+    pixelOffset = s ^. sPixelOffset
+    movement = (s ^. sMovementDelta)
+    yCount = winHeight `div` gridItemSize
+    xCount = 1 + (winWidth `ceilDiv` gridItemSize)
+    (resultImageIndex, resultPixelOffset)
+      | newPosIndex < 0 = (0, 0)
+      | newPosIndex >= rightMost && m+winWidth >= gridItemSize = (imageIndex, pixelOffset)
+      | otherwise = (newPosIndex, m)
+      where
+        newPosIndex = imageIndex + (d * yCount)
+        columns = imgCount `ceilDiv` yCount
+        rightMost = (1 + columns - (xCount-1)) `align` yCount
+        (d, m) = (pixelOffset + movement) `divMod` gridItemSize
+
+run :: Int -> IndexedCache SizedImage -> IO b
+run imgCount imgCache = do
+  scrollerRef <- newIORef emptyScroller
+  GLFW.setKeyCallback $ keyPressed & mapped . mapped %~ modifyIORef' scrollerRef
+  mainLoop $ \winSize -> do
+    Vector2 xCount yCount <-
+      atomicModifyIORef' scrollerRef $ iteration imgCount winSize
+    scroller <- readIORef scrollerRef
+
+    let
+      gridPositions =
+        map ((_1 %~ subtract (scroller ^. sPixelOffset)) . fmap ((gridItemSize*) . fromIntegral)) $
+        Vector2 <$> [0::Int ..] <*> [0..yCount-1]
+      startOfRange = scroller ^. sImageIndex
+      endOfRange = min (startOfRange + (xCount*yCount)) imgCount
+      invisibleIndices =
+        -- Left:
+        [0..startOfRange-1] ++
+        -- Right:
+        [endOfRange .. imgCount-1]
+    forM_ invisibleIndices $ \i -> do
+      IndexedCache.delete imgCache i
+
+    imgs <- forM [startOfRange..endOfRange-1] $ IndexedCache.get imgCache
+
+    let
+      toTuple = Vector2.uncurry (,)
+      place imgPos img =
+        (Draw.translate . toTuple) (fromIntegral <$> imgPos) %%
+        SizedImage.scaleTo gridItemSize img
+    return . mconcat . reverse $ zipWith place gridPositions imgs
 
 main :: IO ()
 main = do
@@ -69,46 +131,3 @@ main = do
   GLFWUtils.withGLFWWindow GLFW.defaultDisplayOptions $ do
     GLFW.setWindowCloseCallback $ fail "Window closed"
     run imgCount imgCache
-
-run :: Int -> IndexedCache SizedImage -> IO b
-run imgCount imgCache = do
-  movementRef <- newIORef 0
-  posRef <- newIORef (0, 0)
-  let keyPressed GLFW.KeyLeft = move (-10)
-      keyPressed GLFW.KeyRight = move 10
-      keyPressed _ = return $ return ()
-      move delta  True  = writeIORef movementRef delta
-      move _delta False = writeIORef movementRef 0
-  GLFW.setKeyCallback keyPressed
-  let
-    gridItemSize :: Num a => a
-    gridItemSize = 400
-  mainLoop $ \(Vector2 winWidth winHeight) -> do
-    movement <- readIORef movementRef
-    (posIndex, posDelta) <- readIORef posRef
-    let
-      yCount = winHeight `div` gridItemSize
-      xCount = (posDelta + winWidth) `ceilDiv` gridItemSize
-    modifyIORef' posRef $ updatePos imgCount gridItemSize winWidth (xCount, yCount) movement
-
-    let
-      gridPositions =
-        map ((_1 %~ subtract posDelta) . fmap ((gridItemSize*) . fromIntegral)) $
-        Vector2 <$> [0::Int ..] <*> [0..yCount-1]
-      startOfRange = posIndex
-      endOfRange = min (posIndex + (xCount*yCount) - 1) (imgCount-1)
-      invisibleIndices =
-        -- Left:
-        [0..startOfRange-1] ++
-        -- Right:
-        [endOfRange+1 .. imgCount-1]
-    forM_ invisibleIndices $ IndexedCache.delete imgCache
-
-    imgs <- forM [startOfRange..endOfRange] $ IndexedCache.get imgCache
-
-    let
-      toTuple = Vector2.uncurry (,)
-      place imgPos img =
-        (Draw.translate . toTuple) (fromIntegral <$> imgPos) %%
-        SizedImage.scaleTo gridItemSize img
-    return . mconcat . reverse $ zipWith place gridPositions imgs
