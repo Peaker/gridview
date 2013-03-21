@@ -1,4 +1,4 @@
-module GLFWUtils where
+module Graphics.UI.GLFW.Utils where
 
 import Control.Monad
 import qualified Control.Exception as E

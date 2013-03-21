@@ -8,17 +8,17 @@ import Data.IORef
 import Data.Monoid
 import Data.Vector.Vector2 (Vector2(..))
 import Graphics.DrawingCombinators ((%%))
+import Graphics.GridView.IndexedCache (IndexedCache)
+import Graphics.GridView.SizedImage (SizedImage)
 import Graphics.Rendering.OpenGL.GL (($=))
-import IndexedCache (IndexedCache)
-import SizedImage (SizedImage)
 import qualified Data.Vector as V
 import qualified Data.Vector.Vector2 as Vector2
-import qualified GLFWUtils as GLFWUtils
 import qualified Graphics.DrawingCombinators as Draw
+import qualified Graphics.GridView.IndexedCache as IndexedCache
+import qualified Graphics.GridView.SizedImage as SizedImage
 import qualified Graphics.Rendering.OpenGL.GL as GL
 import qualified Graphics.UI.GLFW as GLFW
-import qualified IndexedCache as IndexedCache
-import qualified SizedImage as SizedImage
+import qualified Graphics.UI.GLFW.Utils as GLFWUtils
 import qualified System.Environment as Env
 import qualified System.IO as IO
 

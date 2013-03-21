@@ -1,4 +1,4 @@
-module IndexedCache where
+module Graphics.GridView.IndexedCache where
 
 import Control.Applicative
 import Control.Monad

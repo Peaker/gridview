@@ -1,4 +1,4 @@
-module SizedImage where
+module Graphics.GridView.SizedImage where
 
 import Control.Applicative
 import Control.Lens (both, (&), (%~))

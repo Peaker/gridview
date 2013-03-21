@@ -16,11 +16,11 @@ cabal-version:       >=1.8
 
 executable gridview
   hs-Source-Dirs:      src
-  main-is:             GridView.hs
-  other-modules:       GLFWUtils,
-                       Data.Vector.Vector2,
-                       SizedImage,
-                       IndexedCache
+  main-is:             Main.hs
+  other-modules:       Data.Vector.Vector2,
+                       Graphics.UI.GLFW.Utils,
+                       Graphics.GridView.SizedImage,
+                       Graphics.GridView.IndexedCache
   build-depends:       base ==4.6.*, GLFW-b ==0.1.*, lens ==3.8.*,
                        graphics-drawingcombinators ==1.4.*, stb-image ==0.2.*, primitive ==0.5.*,
                        vector ==0.10.*, OpenGL ==2.6.*, binary ==0.6.*, derive ==2.5.*
