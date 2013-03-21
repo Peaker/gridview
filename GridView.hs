@@ -2,16 +2,17 @@
 {-# LANGUAGE ViewPatterns #-}
 --import qualified System.Directory as Dir
 import Control.Applicative
-import Control.Arrow
-import Control.Lens (both, (&), (%~))
+import Control.Lens (_1, (%~))
 import Control.Monad
 import Data.IORef
 import Data.Monoid
+import Data.Vector.Vector2 (Vector2(..))
 import Graphics.DrawingCombinators ((%%))
 import Graphics.Rendering.OpenGL.GL (($=))
 import IndexedCache (IndexedCache)
 import SizedImage (SizedImage)
 import qualified Data.Vector as V
+import qualified Data.Vector.Vector2 as Vector2
 import qualified GLFWUtils as GLFWUtils
 import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.Rendering.OpenGL.GL as GL
@@ -21,16 +22,19 @@ import qualified SizedImage as SizedImage
 import qualified System.Environment as Env
 import qualified System.IO as IO
 
-mainLoop :: ((Int, Int) -> IO (Draw.Image a)) -> IO b
+getWinSize :: IO (Vector2 Int)
+getWinSize = uncurry Vector2 <$> GLFW.getWindowDimensions
+
+mainLoop :: (Vector2 Int -> IO (Draw.Image a)) -> IO b
 mainLoop mkImage =
   forever $ do
-    winSize@(winWidth, winHeight) <- GLFW.getWindowDimensions
-    GL.viewport $= (GL.Position 0 0, GL.Size (fromIntegral winWidth) (fromIntegral winHeight))
+    winSize <- getWinSize
+    GL.viewport $= (GL.Position 0 0, Vector2.uncurry GL.Size $ fromIntegral <$> winSize)
     GL.clearColor $= GL.Color4 0 0 0 0
     img <- mkImage winSize
     Draw.clearRender $
       Draw.translate (-1, -1) %%
-      Draw.scale (2/fromIntegral winWidth) (2/fromIntegral winHeight) %%
+      Vector2.uncurry Draw.scale (2 / (fromIntegral <$> winSize)) %%
       img
     GLFW.pollEvents
     GLFW.swapBuffers
@@ -79,7 +83,7 @@ run imgCount imgCache = do
   let
     gridItemSize :: Num a => a
     gridItemSize = 400
-  mainLoop $ \(winWidth, winHeight) -> do
+  mainLoop $ \(Vector2 winWidth winHeight) -> do
     movement <- readIORef movementRef
     (posIndex, posDelta) <- readIORef posRef
     let
@@ -89,8 +93,8 @@ run imgCount imgCache = do
 
     let
       gridPositions =
-        map (first (subtract posDelta) . (both %~ (gridItemSize*) . fromIntegral)) $
-        (,) <$> [0::Int ..] <*> [0..yCount-1]
+        map ((_1 %~ subtract posDelta) . fmap ((gridItemSize*) . fromIntegral)) $
+        Vector2 <$> [0::Int ..] <*> [0..yCount-1]
       startOfRange = posIndex
       endOfRange = min (posIndex + (xCount*yCount) - 1) (imgCount-1)
       invisibleIndices =
@@ -103,7 +107,8 @@ run imgCount imgCache = do
     imgs <- forM [startOfRange..endOfRange] $ IndexedCache.get imgCache
 
     let
+      toTuple = Vector2.uncurry (,)
       place imgPos img =
-        Draw.translate (imgPos & both %~ fromIntegral) %%
+        (Draw.translate . toTuple) (fromIntegral <$> imgPos) %%
         SizedImage.scaleTo gridItemSize img
     return . mconcat . reverse $ zipWith place gridPositions imgs
