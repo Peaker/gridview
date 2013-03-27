@@ -1,25 +1,28 @@
 module Main (main) where
 
---import qualified System.Directory as Dir
 import Control.Applicative
 import Control.Lens (_1, (^.), (%~), (.~), (&), mapped)
 import Control.Monad
 import Data.IORef
+import Data.Maybe (fromMaybe)
 import Data.Monoid
 import Data.Vector.Vector2 (Vector2(..))
 import Graphics.DrawingCombinators ((%%))
-import Graphics.GridView.IndexedCache (IndexedCache)
+import Graphics.GridView.CellArray (CellArray)
 import Graphics.GridView.MainLoop (mainLoop)
 import Graphics.GridView.Scroller (Scroller)
 import Graphics.GridView.SizedImage (SizedImage)
+import Paths_gridview (getDataFileName)
+import qualified Control.Exception as E
 import qualified Data.Vector as V
 import qualified Data.Vector.Vector2 as Vector2
 import qualified Graphics.DrawingCombinators as Draw
-import qualified Graphics.GridView.IndexedCache as IndexedCache
+import qualified Graphics.GridView.CellArray as CellArray
 import qualified Graphics.GridView.Scroller as Scroller
 import qualified Graphics.GridView.SizedImage as SizedImage
 import qualified Graphics.UI.GLFW as GLFW
 import qualified Graphics.UI.GLFW.Utils as GLFWUtils
+import qualified System.Directory as Dir
 import qualified System.Environment as Env
 import qualified System.IO as IO
 
@@ -37,8 +40,8 @@ keyPressed GLFW.KeyLeft True = Scroller.sMovementDelta .~ (-10)
 keyPressed GLFW.KeyRight True = Scroller.sMovementDelta .~ 10
 keyPressed _ _ = id
 
-run :: Int -> IndexedCache SizedImage -> IO b
-run imgCount imgCache = do
+run :: Draw.Font -> Int -> CellArray SizedImage -> IO b
+run font imgCount imgCache = do
   scrollerRef <- newIORef Scroller.empty
   GLFW.setKeyCallback $ keyPressed & mapped . mapped %~ modifyIORef' scrollerRef
   mainLoop $ \winSize -> do
@@ -60,9 +63,16 @@ run imgCount imgCache = do
         -- Right:
         [endOfRange .. imgCount-1]
     forM_ invisibleIndices $ \i ->
-      IndexedCache.delete imgCache i
+      CellArray.delete imgCache i
 
-    imgs <- forM [startOfRange..endOfRange-1] $ IndexedCache.get imgCache
+    forM_ [startOfRange..endOfRange-1] $ CellArray.startComputing imgCache
+
+    let loading = SizedImage.fromText font "Loading"
+
+    imgs <-
+      forM [startOfRange..endOfRange-1] $ \i ->
+      fmap (fromMaybe loading) $
+      CellArray.get imgCache i
 
     let
       toTuple = Vector2.uncurry (,)
@@ -71,11 +81,20 @@ run imgCount imgCache = do
         SizedImage.scaleTo gridItemSize img
     return . mconcat . reverse $ zipWith place gridPositions imgs
 
+getFont :: FilePath -> IO Draw.Font
+getFont fileName = do
+  e <- Dir.doesFileExist fileName
+  unless e . fail $ fileName ++ " does not exist"
+  Draw.openFont fileName
+
 main :: IO ()
 main = do
+  font <-
+    (getFont =<< getDataFileName "fonts/DejaVuSans.ttf")
+    `E.catch` \(E.SomeException _) -> getFont "fonts/DejaVuSans.ttf"
   IO.hSetBuffering IO.stdout IO.LineBuffering
   (imgCount, fileNameAt) <- argsArray
-  imgCache <- IndexedCache.new imgCount (SizedImage.load . fileNameAt)
+  imgCache <- CellArray.new imgCount (SizedImage.load . fileNameAt)
   GLFWUtils.withGLFWWindow GLFW.defaultDisplayOptions $ do
     GLFW.setWindowCloseCallback $ fail "Window closed"
-    run imgCount imgCache
+    run font imgCount imgCache
