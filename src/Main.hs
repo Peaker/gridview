@@ -77,7 +77,7 @@ iteration imgCount (Vector2 winWidth winHeight) s =
   where
     imageIndex = s ^. sImageIndex
     pixelOffset = s ^. sPixelOffset
-    movement = (s ^. sMovementDelta)
+    movement = s ^. sMovementDelta
     yCount = winHeight `div` gridItemSize
     xCount = 1 + (winWidth `ceilDiv` gridItemSize)
     (resultImageIndex, resultPixelOffset)
@@ -110,7 +110,7 @@ run imgCount imgCache = do
         [0..startOfRange-1] ++
         -- Right:
         [endOfRange .. imgCount-1]
-    forM_ invisibleIndices $ \i -> do
+    forM_ invisibleIndices $ \i ->
       IndexedCache.delete imgCache i
 
     imgs <- forM [startOfRange..endOfRange-1] $ IndexedCache.get imgCache
