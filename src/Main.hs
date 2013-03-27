@@ -9,6 +9,7 @@ import Data.Monoid
 import Data.Vector.Vector2 (Vector2(..))
 import Graphics.DrawingCombinators ((%%))
 import Graphics.GridView.IndexedCache (IndexedCache)
+import Graphics.GridView.MainLoop (mainLoop)
 import Graphics.GridView.Scroller (Scroller)
 import Graphics.GridView.SizedImage (SizedImage)
 import Graphics.Rendering.OpenGL.GL (($=))
@@ -23,23 +24,6 @@ import qualified Graphics.UI.GLFW as GLFW
 import qualified Graphics.UI.GLFW.Utils as GLFWUtils
 import qualified System.Environment as Env
 import qualified System.IO as IO
-
-getWinSize :: IO (Vector2 Int)
-getWinSize = uncurry Vector2 <$> GLFW.getWindowDimensions
-
-mainLoop :: (Vector2 Int -> IO (Draw.Image a)) -> IO b
-mainLoop mkImage =
-  forever $ do
-    winSize <- getWinSize
-    GL.viewport $= (GL.Position 0 0, Vector2.uncurry GL.Size $ fromIntegral <$> winSize)
-    GL.clearColor $= GL.Color4 0 0 0 0
-    img <- mkImage winSize
-    Draw.clearRender $
-      Draw.translate (-1, -1) %%
-      Vector2.uncurry Draw.scale (2 / (fromIntegral <$> winSize)) %%
-      img
-    GLFW.pollEvents
-    GLFW.swapBuffers
 
 gridItemSize :: Num a => a
 gridItemSize = 400

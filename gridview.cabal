@@ -19,10 +19,11 @@ executable gridview
   main-is:             Main.hs
   ghc-options:         -Wall -O2
   other-modules:       Data.Vector.Vector2,
-                       Graphics.UI.GLFW.Utils,
+                       Graphics.GridView.IndexedCache,
+                       Graphics.GridView.MainLoop,
                        Graphics.GridView.Scroller,
                        Graphics.GridView.SizedImage,
-                       Graphics.GridView.IndexedCache
+                       Graphics.UI.GLFW.Utils
   build-depends:       base ==4.6.*, GLFW-b ==0.1.*, lens ==3.8.*,
                        graphics-drawingcombinators ==1.4.*, stb-image ==0.2.*, primitive ==0.5.*,
                        vector ==0.10.*, OpenGL ==2.6.*, binary ==0.6.*, derive ==2.5.*
