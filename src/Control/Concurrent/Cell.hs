@@ -9,8 +9,9 @@ module Control.Concurrent.Cell
 import Control.Applicative ((<$>))
 import Control.Concurrent (ThreadId, killThread, forkIO)
 import Control.Concurrent.MVar
+import qualified Control.Exception as E
 
-data CellState a = Uncomputed | Computed a | Computing ThreadId
+data CellState a = Uncomputed | Computed (Either E.SomeException a) | Computing ThreadId
 
 data Cell a = Cell
   { _cellCompute :: IO a
@@ -28,7 +29,7 @@ startComputing (Cell compute mvar) =
     start x@(Computing _) = return x
     start    Uncomputed =
       fmap Computing . forkIO $ do
-        result <- Computed <$> compute
+        result <- Computed <$> E.try compute
         modifyMVar_ mvar . const $ return result
 
 delete :: Cell a -> IO ()
@@ -42,8 +43,9 @@ delete (Cell _ mvar) = do
       return Uncomputed
 
 peek :: Cell a -> IO (Maybe a)
-peek (Cell _ mvar) = f <$> readMVar mvar
+peek (Cell _ mvar) = f =<< readMVar mvar
   where
-    f Uncomputed = Nothing
-    f (Computing _) = Nothing
-    f (Computed x) = Just x
+    f (Computed (Right x)) = return $ Just x
+    f (Computed (Left err)) = E.throwIO err
+    f (Computing _) = return Nothing
+    f Uncomputed = return Nothing
