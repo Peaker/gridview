@@ -20,6 +20,7 @@ executable gridview
   ghc-options:         -Wall -O2
   other-modules:       Data.Vector.Vector2,
                        Graphics.UI.GLFW.Utils,
+                       Graphics.GridView.Scroller,
                        Graphics.GridView.SizedImage,
                        Graphics.GridView.IndexedCache
   build-depends:       base ==4.6.*, GLFW-b ==0.1.*, lens ==3.8.*,
