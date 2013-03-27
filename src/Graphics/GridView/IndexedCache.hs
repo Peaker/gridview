@@ -18,7 +18,7 @@ newDefault l x = do
   return v
 
 new :: Int -> (Int -> IO a) -> IO (IndexedCache a)
-new count new = IndexedCache count new <$> newDefault count Nothing
+new count func = IndexedCache count func <$> newDefault count Nothing
 
 debug :: String -> IO ()
 debug _msg = return ()
@@ -30,11 +30,11 @@ delete (IndexedCache _ _ array) i = do
   MV.write array i Nothing
 
 get :: IndexedCache a -> Int -> IO a
-get (IndexedCache _ new array) index = do
+get (IndexedCache _ func array) index = do
   mItem <- MV.read array index
   case mItem of
     Nothing -> do
-      item <- new index
+      item <- func index
       debug $ "Loading: " ++ show index
       MV.write array index $ Just item
       return item

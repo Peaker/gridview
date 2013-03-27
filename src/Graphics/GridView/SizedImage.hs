@@ -18,7 +18,7 @@ scaleTo :: Draw.R -> SizedImage -> Draw.Image Any
 scaleTo maxSize SizedImage { siSize = size, siUnscaledImage = img } =
   Vector2.uncurry Draw.scale ((factor *) <$> size) %% img
   where
-    factor = maxSize / Vector2.uncurry min size
+    factor = maxSize / Vector2.uncurry max size
 
 -- siImage :: SizedImage -> Draw.Image Any
 -- siImage SizedImage { siSize = (width, height), siUnscaledImage = img } =

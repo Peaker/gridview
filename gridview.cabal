@@ -17,6 +17,7 @@ cabal-version:       >=1.8
 executable gridview
   hs-Source-Dirs:      src
   main-is:             Main.hs
+  ghc-options:         -Wall -O2
   other-modules:       Data.Vector.Vector2,
                        Graphics.UI.GLFW.Utils,
                        Graphics.GridView.SizedImage,

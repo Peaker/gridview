@@ -1,4 +1,3 @@
-{-# OPTIONS -Wall -O2 #-}
 {-# LANGUAGE ViewPatterns, TemplateHaskell #-}
 --import qualified System.Directory as Dir
 import Control.Applicative
