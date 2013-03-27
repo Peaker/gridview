@@ -1,5 +1,6 @@
 module Main (main) where
 
+import Codec.Image.STB (Image)
 import Control.Applicative
 import Control.Concurrent.Responder (Responder)
 import Control.Lens (_1, (^.), (%~), (.~), (&), mapped)
@@ -90,6 +91,9 @@ getFont fileName = do
   unless e . fail $ fileName ++ " does not exist"
   Draw.openFont fileName
 
+loadImage :: FilePath -> IO Image
+loadImage = either fail return <=< Image.loadImage
+
 main :: IO ()
 main = do
   font <-
@@ -100,8 +104,8 @@ main = do
   responder <- Responder.new
   let
     loadIndex i =
-      Responder.sendRequest responder . SizedImage.load =<< either fail return =<<
-      Image.loadImage (fileNameAt i)
+      Responder.sendRequest responder . SizedImage.fromBitmap =<<
+      loadImage (fileNameAt i)
   imgCache <- CellArray.new imgCount loadIndex
   GLFWUtils.withGLFWWindow GLFW.defaultDisplayOptions $ do
     GLFW.setWindowCloseCallback $ fail "Window closed"

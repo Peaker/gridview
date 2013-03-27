@@ -1,7 +1,8 @@
 module Graphics.GridView.SizedImage
   ( SizedImage
+  , getSize
   , scaleTo
-  , load
+  , fromBitmap
   , fromImage, fromText
   ) where
 
@@ -19,6 +20,9 @@ data SizedImage = SizedImage
   { siSize :: Vector2 Draw.R
   , siUnscaledImage :: Draw.Image ()
   }
+
+getSize :: SizedImage -> Vector2 Draw.R
+getSize = siSize
 
 scaleTo :: Draw.R -> SizedImage -> Draw.Image ()
 scaleTo maxSize SizedImage { siSize = size, siUnscaledImage = img } =
@@ -43,8 +47,8 @@ fromText font text =
   fromImage (Vector2 (Draw.textWidth font text) 2) $
   Draw.text font text
 
-load :: Bitmap.PixelComponent t => Bitmap t -> IO SizedImage
-load bmp = do
+fromBitmap :: Bitmap.PixelComponent t => Bitmap t -> IO SizedImage
+fromBitmap bmp = do
   sprite <- Draw.spriteBitmap bmp
   let size = uncurry Vector2 $ Draw.spriteResolution sprite & both %~ fromIntegral
   return . fromImage size $ Draw.sprite sprite
