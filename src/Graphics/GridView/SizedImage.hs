@@ -6,11 +6,12 @@ module Graphics.GridView.SizedImage
   ) where
 
 import Control.Applicative
-import Control.Monad (void)
 import Control.Lens (both, (&), (%~))
+import Control.Monad (void)
+import Data.Bitmap (Bitmap)
 import Data.Vector.Vector2 (Vector2(..))
 import Graphics.DrawingCombinators ((%%))
-import qualified Codec.Image.STB as Image
+import qualified Data.Bitmap as Bitmap
 import qualified Data.Vector.Vector2 as Vector2
 import qualified Graphics.DrawingCombinators as Draw
 
@@ -42,11 +43,8 @@ fromText font text =
   fromImage (Vector2 (Draw.textWidth font text) 2) $
   Draw.text font text
 
-load :: FilePath -> IO SizedImage
-load filePath = do
-  putStrLn "Loading image"
-  bmp <- either fail return =<< Image.loadImage filePath
-  putStrLn "Done loading image"
+load :: Bitmap.PixelComponent t => Bitmap t -> IO SizedImage
+load bmp = do
   sprite <- Draw.spriteBitmap bmp
   let size = uncurry Vector2 $ Draw.spriteResolution sprite & both %~ fromIntegral
   return . fromImage size $ Draw.sprite sprite
