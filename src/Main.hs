@@ -12,14 +12,12 @@ import Graphics.GridView.IndexedCache (IndexedCache)
 import Graphics.GridView.MainLoop (mainLoop)
 import Graphics.GridView.Scroller (Scroller)
 import Graphics.GridView.SizedImage (SizedImage)
-import Graphics.Rendering.OpenGL.GL (($=))
 import qualified Data.Vector as V
 import qualified Data.Vector.Vector2 as Vector2
 import qualified Graphics.DrawingCombinators as Draw
 import qualified Graphics.GridView.IndexedCache as IndexedCache
 import qualified Graphics.GridView.Scroller as Scroller
 import qualified Graphics.GridView.SizedImage as SizedImage
-import qualified Graphics.Rendering.OpenGL.GL as GL
 import qualified Graphics.UI.GLFW as GLFW
 import qualified Graphics.UI.GLFW.Utils as GLFWUtils
 import qualified System.Environment as Env

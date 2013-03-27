@@ -1,4 +1,4 @@
-module Graphics.GridView.IndexedCache where
+module Graphics.GridView.IndexedCache (IndexedCache, new, delete, get) where
 
 import Control.Applicative
 import Control.Monad
@@ -6,8 +6,7 @@ import Control.Monad.Primitive (PrimMonad, PrimState)
 import qualified Data.Vector.Mutable as MV
 
 data IndexedCache a = IndexedCache
-  { _cacheSize :: Int
-  , _cacheNew :: Int -> IO a
+  { _cacheNew :: Int -> IO a
   , _cacheArray :: MV.IOVector (Maybe a)
   }
 
@@ -18,19 +17,19 @@ newDefault l x = do
   return v
 
 new :: Int -> (Int -> IO a) -> IO (IndexedCache a)
-new count func = IndexedCache count func <$> newDefault count Nothing
+new count func = IndexedCache func <$> newDefault count Nothing
 
 debug :: String -> IO ()
 debug _msg = return ()
 
 delete :: IndexedCache a -> Int -> IO ()
-delete (IndexedCache _ _ array) i = do
+delete (IndexedCache _ array) i = do
   maybe (return ()) (const . debug $ "Cache Deleting: " ++ show i) =<<
     MV.read array i
   MV.write array i Nothing
 
 get :: IndexedCache a -> Int -> IO a
-get (IndexedCache _ func array) index = do
+get (IndexedCache func array) index = do
   mItem <- MV.read array index
   case mItem of
     Nothing -> do
