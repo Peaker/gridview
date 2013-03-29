@@ -3,7 +3,7 @@ module Main (main) where
 import Codec.Image.STB (Image)
 import Control.Applicative
 import Control.Concurrent.Responder (Responder)
-import Control.Lens (_1, (^.), (%~), (.~), (&), mapped)
+import Control.Lens ((^.), (%~), (.~), (&), mapped)
 import Control.Monad
 import Data.IORef
 import Data.Maybe (fromMaybe)
@@ -46,19 +46,14 @@ keyPressed _ _ = id
 
 run :: Responder -> Draw.Font -> Int -> CellArray SizedImage -> IO b
 run responder font imgCount imgCache = do
-  scrollerRef <- newIORef Scroller.empty
+  scrollerRef <- newIORef $ Scroller.empty gridItemSize
   GLFW.setKeyCallback $ keyPressed & mapped . mapped %~ modifyIORef' scrollerRef
   mainLoop $ \winSize -> do
     Responder.handleRequests responder
-    Vector2 xCount yCount <-
-      atomicModifyIORef' scrollerRef $ Scroller.iteration gridItemSize imgCount winSize
+    (Vector2 xCount yCount, gridPositions) <-
+      atomicModifyIORef' scrollerRef $ Scroller.iteration imgCount winSize
     scroller <- readIORef scrollerRef
     let
-      gridPositions =
-        map
-        ((_1 %~ subtract (scroller ^. Scroller.sPixelOffset)) .
-         fmap ((gridItemSize*) . fromIntegral)) $
-        Vector2 <$> [0::Int ..] <*> [0..yCount-1]
       startOfRange = scroller ^. Scroller.sImageIndex
       endOfRange = min (startOfRange + (xCount*yCount)) imgCount
       invisibleIndices =
