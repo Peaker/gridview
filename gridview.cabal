@@ -18,7 +18,7 @@ Data-files:          fonts/DejaVuSans.ttf
 executable gridview
   hs-Source-Dirs:      src
   main-is:             Main.hs
-  ghc-options:         -Wall -O2 -threaded
+  ghc-options:         -Wall -O2 -rtsopts
   other-modules:       Control.Concurrent.Cell,
                        Control.Concurrent.Responder,
                        Data.Vector.Vector2,
